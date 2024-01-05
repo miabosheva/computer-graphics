@@ -1,3 +1,4 @@
+/*
 #include <OpenGLPrj.hpp>
 
 #include <GLFW/glfw3.h>
@@ -9,7 +10,7 @@
 #include <string>
 #include <vector>
 
-const std::string program_name = ("Camera");
+const std::string program_name = ("Colour");
 
 void framebuffer_size_callback(GLFWwindow* window, int width, int height);
 void mouse_callback(GLFWwindow* window, double xpos, double ypos);
@@ -18,7 +19,7 @@ void processInput(GLFWwindow* window);
 
 // settings
 const unsigned int SCR_WIDTH = 800;
-const unsigned int SCR_HEIGHT = 800;
+const unsigned int SCR_HEIGHT = 600;
 
 // camera
 static Camera camera(glm::vec3(0.0f, 0.0f, 3.0f));
@@ -27,12 +28,11 @@ static float lastY = SCR_HEIGHT / 2.0f;
 static bool firstMouse = true;
 
 // timing
-static float deltaTime = 0.0f; // time between current frame and last frame
+static float deltaTime = 0.0f;
 static float lastFrame = 0.0f;
 
-float jump_velocity = 0;
-bool is_Jumping = false;
-bool is_squating = false;
+// lighting
+static glm::vec3 lightPos(1.2f, 1.0f, 2.0f);
 
 int main() {
     // glfw: initialize and configure
@@ -80,123 +80,84 @@ int main() {
     // ------------------------------------
     std::string shader_location("../res/shaders/");
 
-    std::string used_shaders("shader");
+    std::string material_shader("material");
+    std::string lamp_shader("lamp");
 
-    Shader ourShader(shader_location + used_shaders + std::string(".vert"),
-        shader_location + used_shaders + std::string(".frag"));
+    // build and compile our shader zprogram
+    // ------------------------------------
+    Shader lightingShader(
+        shader_location + material_shader + std::string(".vert"),
+        shader_location + material_shader + std::string(".frag"));
+    Shader lampShader(shader_location + lamp_shader + std::string(".vert"),
+        shader_location + lamp_shader + std::string(".frag"));
 
     // set up vertex data (and buffer(s)) and configure vertex attributes
     // ------------------------------------------------------------------
     float vertices[] = {
-      -100, -0.1f, -100,  0.0f, 0.0f,
-      100,  -0.1f, -100, 1.0f, 0.0f,
-      100,  0.0f,  -100,  1.0f, 1.0f,
-      100,  0.0f,  -100, 1.0f, 1.0f,
-      -100, 0.0f,  -100,  0.0f, 1.0f,
-      -100, -0.1f, -100, 0.0f, 0.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f, 0.5f,  -0.5f, -0.5f,
+        0.0f,  0.0f,  -1.0f, 0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f,
+        0.5f,  0.5f,  -0.5f, 0.0f,  0.0f,  -1.0f, -0.5f, 0.5f,  -0.5f,
+        0.0f,  0.0f,  -1.0f, -0.5f, -0.5f, -0.5f, 0.0f,  0.0f,  -1.0f,
 
-      -100, -0.1f, 100,  0.0f, 0.0f,
-      100,  -0.1f, 100,  1.0f, 0.0f,
-      100,  0.0f,  100,  1.0f, 1.0f,
-      100,  0.0f,  100,  1.0f, 1.0f,
-      -100, 0.0f,  100,  0.0f, 1.0f,
-      -100, -0.1f, 100,  0.0f, 0.0f,
+        -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,  0.5f,  -0.5f, 0.5f,
+        0.0f,  0.0f,  1.0f,  0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  0.0f,  1.0f,  -0.5f, 0.5f,  0.5f,
+        0.0f,  0.0f,  1.0f,  -0.5f, -0.5f, 0.5f,  0.0f,  0.0f,  1.0f,
 
-      -100, 0.0f,  100,  1.0f, 0.0f,
-      -100, 0.0f,  -100, 1.0f, 1.0f,
-      -100, -0.1f, -100, 0.0f, 1.0f,
-      -100, -0.1f, -100, 0.0f, 1.0f,
-      -100, -0.1f, 100,  0.0f, 0.0f,
-      -100, 0.0f,  100,  1.0f, 0.0f,
+        -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,  -0.5f, 0.5f,  -0.5f,
+        -1.0f, 0.0f,  0.0f,  -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,
+        -0.5f, -0.5f, -0.5f, -1.0f, 0.0f,  0.0f,  -0.5f, -0.5f, 0.5f,
+        -1.0f, 0.0f,  0.0f,  -0.5f, 0.5f,  0.5f,  -1.0f, 0.0f,  0.0f,
 
-      100,  0.0f,  100,  1.0f, 0.0f,
-      100,  0.0f,  -100, 1.0f, 1.0f,
-      100,  -0.1f, -100, 0.0f, 1.0f,
-      100,  -0.1f, -100, 0.0f, 1.0f,
-      100,  -0.1f, 100,  0.0f, 0.0f,
-      100,  0.0f,  100,  1.0f, 0.0f,
+        0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
+        1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,
+        0.5f,  -0.5f, -0.5f, 1.0f,  0.0f,  0.0f,  0.5f,  -0.5f, 0.5f,
+        1.0f,  0.0f,  0.0f,  0.5f,  0.5f,  0.5f,  1.0f,  0.0f,  0.0f,
 
-      -100, -0.1f, -100, 0.0f, 1.0f,
-      100,  -0.1f, -100, 1.0f, 1.0f,
-      100,  -0.1f, 100,  1.0f, 0.0f,
-      100,  -0.1f, 100,  1.0f, 0.0f,
-      -100, -0.1f, 100,  0.0f, 0.0f,
-      -100, -0.1f, -100, 0.0f, 1.0f,
+        -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,  0.5f,  -0.5f, -0.5f,
+        0.0f,  -1.0f, 0.0f,  0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,
+        0.5f,  -0.5f, 0.5f,  0.0f,  -1.0f, 0.0f,  -0.5f, -0.5f, 0.5f,
+        0.0f,  -1.0f, 0.0f,  -0.5f, -0.5f, -0.5f, 0.0f,  -1.0f, 0.0f,
 
-      -100, 0.0f,  -100, 0.0f, 100.0f,
-      100,  0.0f,  -100, 50.0f, 100.0f,
-      100,  0.0f,  100,  50.0f, 0.0f,
-      100,  0.0f,  100,  50.0f, 0.0f,
-      -100, 0.0f,  100,  0.0f, 0.0f,
-      -100, 0.0f,  -100, 0.0f, 100.0f
-
-    };
-
-
-    unsigned int VBO, VAO;
-    glGenVertexArrays(1, &VAO);
+        -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  -0.5f,
+        0.0f,  1.0f,  0.0f,  0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,
+        0.5f,  0.5f,  0.5f,  0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  0.5f,
+        0.0f,  1.0f,  0.0f,  -0.5f, 0.5f,  -0.5f, 0.0f,  1.0f,  0.0f };
+    // first, configure the cube's VAO (and VBO)
+    unsigned int VBO, cubeVAO;
+    glGenVertexArrays(1, &cubeVAO);
     glGenBuffers(1, &VBO);
 
-    glBindVertexArray(VAO);
-
     glBindBuffer(GL_ARRAY_BUFFER, VBO);
-    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), &vertices[0], GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+    glBindVertexArray(cubeVAO);
 
     // position attribute
-    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), nullptr);
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-    // texture coord attribute
-    glVertexAttribPointer(1, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float),
-        reinterpret_cast<void*>(3 * sizeof(float)));
+    // normal attribute
+    glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float),
+        (void*)(3 * sizeof(float)));
     glEnableVertexAttribArray(1);
 
-    // load and create a texture
-    // -------------------------
-    unsigned int texture1, texture2;
-    // texture 1
-    // ---------
-    glGenTextures(1, &texture1);
-    glBindTexture(GL_TEXTURE_2D, texture1);
-    // set the texture wrapping parameters
-    glTexParameteri(
-        GL_TEXTURE_2D, GL_TEXTURE_WRAP_S,
-        GL_REPEAT); // set texture wrapping to GL_REPEAT (default wrapping method)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-    // set texture filtering parameters
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-    // load image, create texture and generate mipmaps
-    int width, height, nrChannels;
-    stbi_set_flip_vertically_on_load(
-        true); // tell stb_image.h to flip loaded texture's on the y-axis.
-    // The FileSystem::getPath(...) is part of the GitHub repository so we can
-    // find files on any IDE/platform; replace it with your own image path.
-    unsigned char* data = stbi_load("../res/textures/image2.png", &width,
-        &height, &nrChannels, 0);
-    if (data) {
-        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, width, height, 0, GL_RGBA,
-            GL_UNSIGNED_BYTE, data);
-        glGenerateMipmap(GL_TEXTURE_2D);
-    }
-    else {
-        std::cout << "Failed to load texture" << std::endl;
-    }
-    stbi_image_free(data);
+    // second, configure the light's VAO (VBO stays the same; the vertices are the
+    // same for the light object which is also a 3D cube)
+    unsigned int lightVAO;
+    glGenVertexArrays(1, &lightVAO);
+    glBindVertexArray(lightVAO);
 
-    ourShader.use();
-    ourShader.setInt("texture1", 0);
-
-    int location = glGetUniformLocation(ourShader.ID, "CustomColor");
-
-    //glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-    camera.Position.y = 5;
-    camera.MovementSpeed = 10;
+    glBindBuffer(GL_ARRAY_BUFFER, VBO);
+    // note that we update the lamp's position attribute's stride to reflect the
+    // updated buffer data
+    glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * sizeof(float), (void*)0);
+    glEnableVertexAttribArray(0);
     // render loop
     // -----------
     while (!glfwWindowShouldClose(window)) {
         // per-frame time logic
         // --------------------
-        float currentFrame = static_cast<float>(glfwGetTime());
+        float currentFrame = glfwGetTime();
         deltaTime = currentFrame - lastFrame;
         lastFrame = currentFrame;
 
@@ -206,52 +167,42 @@ int main() {
 
         // render
         // ------
-        glClearColor(0.7f, 0.7f, 1.0f, 1.0f);
+        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
-        glActiveTexture(GL_TEXTURE0);
-        glBindTexture(GL_TEXTURE_2D, texture1);
+        // be sure to activate shader when setting uniforms/drawing objects
+        lightingShader.use();
+        lightingShader.setVec3("objectColor", 1.0f, 0.5f, 0.31f);
+        lightingShader.setVec3("lightColor", 1.0f, 1.0f, 1.0f);
+        lightingShader.setVec3("lightPos", lightPos);
 
-        // activate shader
-        ourShader.use();
-
-        // pass projection matrix to shader (note that in this case it could change
-        // every frame)
-        glm::mat4 projection = glm::perspective(
-            glm::radians(camera.Zoom), SCR_WIDTH * 1.0f / SCR_HEIGHT, 0.1f, 100.0f);
-        ourShader.setMat4("projection", projection);
-
-        // camera/view transformation
+        // view/projection transformations
+        glm::mat4 projection =
+            glm::perspective(glm::radians(camera.Zoom),
+                (float)SCR_WIDTH / (float)SCR_HEIGHT, 0.1f, 100.0f);
         glm::mat4 view = camera.GetViewMatrix();
-        ourShader.setMat4("view", view);
+        lightingShader.setMat4("projection", projection);
+        lightingShader.setMat4("view", view);
 
-        // render boxes
-        glBindVertexArray(VAO);
+        // world transformation
+        glm::mat4 model = glm::mat4(1.0f);
+        lightingShader.setMat4("model", model);
 
-        glm::mat4 model = glm::mat4(
-            1.0f);
-
-        model = glm::translate(model, glm::vec3(0, -4, 0));
-        ourShader.setMat4("model", model);
-
+        // render the cube
+        glBindVertexArray(cubeVAO);
         glDrawArrays(GL_TRIANGLES, 0, 36);
 
+        // also draw the lamp object
+        lampShader.use();
+        lampShader.setMat4("projection", projection);
+        lampShader.setMat4("view", view);
+        model = glm::mat4(1.0f);
+        model = glm::translate(model, lightPos);
+        model = glm::scale(model, glm::vec3(0.2f)); // a smaller cube
+        lampShader.setMat4("model", model);
 
-        if (camera.Position.y > 1) {
-            camera.Position.y -= deltaTime * 5;
-        }
-        if (jump_velocity > 0) {
-            camera.Position.y += jump_velocity * deltaTime;
-            jump_velocity -= deltaTime * 15;
-        }
-        else
-        {
-            is_Jumping = false;
-            jump_velocity = 0;
-        }
-        if (is_squating && !is_Jumping) {
-            camera.Position.y = -0.5f;
-        }
+        glBindVertexArray(lightVAO);
+        glDrawArrays(GL_TRIANGLES, 0, 36);
 
         // glfw: swap buffers and poll IO events (keys pressed/released, mouse moved
         // etc.)
@@ -262,7 +213,8 @@ int main() {
 
     // optional: de-allocate all resources once they've outlived their purpose:
     // ------------------------------------------------------------------------
-    glDeleteVertexArrays(1, &VAO);
+    glDeleteVertexArrays(1, &cubeVAO);
+    glDeleteVertexArrays(1, &lightVAO);
     glDeleteBuffers(1, &VBO);
 
     // glfw: terminate, clearing all previously allocated GLFW resources.
@@ -280,27 +232,12 @@ void processInput(GLFWwindow* window) {
 
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         camera.ProcessKeyboard(FORWARD, deltaTime);
-
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
         camera.ProcessKeyboard(BACKWARD, deltaTime);
-
     if (glfwGetKey(window, GLFW_KEY_A) == GLFW_PRESS)
         camera.ProcessKeyboard(LEFT, deltaTime);
-
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         camera.ProcessKeyboard(RIGHT, deltaTime);
-
-    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS)
-        is_squating = true;
-
-    if (glfwGetKey(window, GLFW_KEY_M) == GLFW_RELEASE && is_squating) {
-        is_squating = false;
-        camera.Position.y = 1;
-    }
-    if (glfwGetKey(window, GLFW_KEY_SPACE) == GLFW_PRESS && is_Jumping == false) {
-        jump_velocity = 10;
-        is_Jumping = true;
-    }
 }
 
 // glfw: whenever the window size changed (by OS or user resize) this callback
@@ -324,13 +261,13 @@ void mouse_callback(GLFWwindow* window, double xposd, double yposd) {
     }
 
     float xoffset = xpos - lastX;
-    float yoffset = lastY - ypos; // reversed since y-coordinates go from bottom to top
+    float yoffset =
+        lastY - ypos; // reversed since y-coordinates go from bottom to top
 
     lastX = xpos;
     lastY = ypos;
 
     camera.ProcessMouseMovement(xoffset, yoffset);
-    printf("%f %f %f\n", camera.Position.x, camera.Position.y, camera.Position.z);
 }
 
 // glfw: whenever the mouse scroll wheel scrolls, this callback is called
@@ -338,3 +275,4 @@ void mouse_callback(GLFWwindow* window, double xposd, double yposd) {
 void scroll_callback(GLFWwindow* window, double xoffset, double yoffset) {
     camera.ProcessMouseScroll(static_cast<float>(yoffset));
 }
+*/
